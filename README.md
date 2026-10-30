@@ -1,0 +1,1 @@
+Expense & Budget Visualizer. This is a mobile-friendly web app that helps users track their daily spending. It shows their total balance, a history of transactions, and a visual chart of spending by category. You can build it as a simple web page that works well on phones.
