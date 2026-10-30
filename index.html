@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="description" content="Track daily spending, visualize budgets by category, and manage your finances on the go." />
+  <meta name="theme-color" content="#6c63ff" />
+
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="BudgetViz" />
+
+  <title>Expense &amp; Budget Visualizer</title>
+  <link rel="stylesheet" href="css/style.css" />
+
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <!-- ── Header ────────────────────────────────── -->
+  <header class="app-header" role="banner">
+    <h1>💸 BudgetViz</h1>
+    <div class="header-actions">
+      <button class="theme-btn" id="themeToggle" aria-label="Toggle dark/light mode">🌙</button>
+    </div>
+  </header>
+
+  <!-- ── Spending-Limit Banner ──────────────────── -->
+  <div class="limit-banner hidden" id="limitBanner" role="alert" aria-live="polite"></div>
+
+  <!-- ════════════════════════════════════════════
+       TAB: Dashboard
+  ══════════════════════════════════════════════ -->
+  <section class="tab-panel active" id="tab-dashboard" role="tabpanel" aria-label="Dashboard">
+
+    <!-- Balance Card -->
+    <div class="balance-card" aria-label="Account summary">
+      <div class="balance-label">Total Balance</div>
+      <div class="balance-amount" id="balance">$0.00</div>
+      <div class="balance-row">
+        <div class="balance-stat">
+          <div class="stat-label">Income</div>
+          <div class="stat-value" id="totalIncome">$0.00</div>
+        </div>
+        <div class="balance-stat">
+          <div class="stat-label">Expenses</div>
+          <div class="stat-value" id="totalExpense">$0.00</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="section-header">
+      <h2>This Month's Spending</h2>
+    </div>
+    <div class="chart-card" aria-label="Spending by category chart">
+      <div class="donut-wrap">
+        <div class="donut-canvas-wrap">
+          <canvas id="donutChart" width="140" height="140" aria-label="Donut chart of expenses by category" role="img"></canvas>
+          <div class="donut-center">
+            <span class="center-label">Total</span>
+            <span class="center-amount" id="donutCenterAmount">$0</span>
+          </div>
+        </div>
+        <div class="chart-legend" id="chartLegend" aria-label="Chart legend"></div>
+      </div>
+      <div class="chart-empty" id="chartEmpty" style="display:none" aria-live="polite">
+        <span style="font-size:2rem">📊</span>
+        <span>No expenses this month yet</span>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       TAB: Add Transaction
+  ══════════════════════════════════════════════ -->
+  <section class="tab-panel" id="tab-add" role="tabpanel" aria-label="Add Transaction">
+
+    <div class="section-header">
+      <h2>New Transaction</h2>
+    </div>
+
+    <div class="add-card">
+      <!-- Type Toggle -->
+      <div class="type-toggle" role="group" aria-label="Transaction type">
+        <button class="type-btn active expense" data-type="expense" type="button">− Expense</button>
+        <button class="type-btn income" data-type="income" type="button">+ Income</button>
+      </div>
+
+      <form id="addTxForm" novalidate>
+
+        <!-- Description -->
+        <div class="form-group">
+          <label for="txDesc">Description</label>
+          <input
+            class="form-control"
+            id="txDesc"
+            type="text"
+            placeholder="e.g. Coffee, Salary…"
+            maxlength="80"
+            autocomplete="off"
+            required
+            aria-required="true"
+          />
+        </div>
+
+        <!-- Amount & Date -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="txAmount">Amount ($)</label>
+            <input
+              class="form-control"
+              id="txAmount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              required
+              aria-required="true"
+            />
+          </div>
+          <div class="form-group">
+            <label for="txDate">Date</label>
+            <input
+              class="form-control"
+              id="txDate"
+              type="date"
+              required
+              aria-required="true"
+            />
+          </div>
+        </div>
+
+        <!-- Category -->
+        <div class="form-group">
+          <label>Category</label>
+          <div class="category-grid" id="categoryGrid" role="group" aria-label="Select a category"></div>
+        </div>
+
+        <button class="btn btn-primary" type="submit">Add Transaction</button>
+
+      </form>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       TAB: Transactions History
+  ══════════════════════════════════════════════ -->
+  <section class="tab-panel" id="tab-history" role="tabpanel" aria-label="Transaction History">
+
+    <div class="section-header">
+      <h2>History</h2>
+    </div>
+
+    <div class="transactions-card">
+      <!-- Filter chips -->
+      <div class="filter-bar" id="filterBar" role="group" aria-label="Filter transactions"></div>
+
+      <!-- Sort -->
+      <div class="sort-bar">
+        <label for="sortSelect" style="flex-shrink:0">Sort by:</label>
+        <select class="sort-select" id="sortSelect" aria-label="Sort transactions">
+          <option value="date">Date (newest)</option>
+          <option value="amount-desc">Amount (high → low)</option>
+          <option value="amount-asc">Amount (low → high)</option>
+          <option value="category">Category</option>
+        </select>
+      </div>
+
+      <!-- List -->
+      <ul class="transaction-list" id="transactionList" aria-label="Transaction list"></ul>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       TAB: Monthly Summary
+  ══════════════════════════════════════════════ -->
+  <section class="tab-panel" id="tab-monthly" role="tabpanel" aria-label="Monthly Summary">
+
+    <div class="section-header">
+      <h2>Monthly Summary</h2>
+    </div>
+
+    <div class="monthly-card">
+      <!-- Month navigation -->
+      <div class="month-nav">
+        <button id="prevMonth" aria-label="Previous month">‹</button>
+        <span class="month-title" id="monthLabel"></span>
+        <button id="nextMonth" aria-label="Next month">›</button>
+      </div>
+
+      <!-- Stats grid -->
+      <div class="monthly-stats">
+        <div class="monthly-stat-item">
+          <div class="msi-label">Income</div>
+          <div class="msi-value income" id="monthIncome">$0.00</div>
+        </div>
+        <div class="monthly-stat-item">
+          <div class="msi-label">Expenses</div>
+          <div class="msi-value expense" id="monthExpense">$0.00</div>
+        </div>
+        <div class="monthly-stat-item" style="grid-column:1/-1">
+          <div class="msi-label">Net Savings</div>
+          <div class="msi-value net" id="monthNet">$0.00</div>
+        </div>
+      </div>
+
+      <!-- Category breakdown -->
+      <div class="section-header" style="padding:0 0 8px">
+        <h2>By Category</h2>
+      </div>
+      <ul class="monthly-cat-list" id="monthlyCatList" aria-label="Expenses by category"></ul>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════════════════════════════
+       TAB: Categories / Settings
+  ══════════════════════════════════════════════ -->
+  <section class="tab-panel" id="tab-categories" role="tabpanel" aria-label="Manage Categories">
+
+    <div class="section-header">
+      <h2>Custom Categories</h2>
+    </div>
+
+    <div class="categories-card">
+
+      <!-- Add category form -->
+      <form id="addCatForm" novalidate>
+        <div class="form-group">
+          <label for="newCatName">Category Name</label>
+          <input
+            class="form-control"
+            id="newCatName"
+            type="text"
+            placeholder="e.g. Gym, Kids…"
+            maxlength="24"
+            autocomplete="off"
+          />
+        </div>
+        <div class="form-group">
+          <label>Pick an Emoji</label>
+          <div class="cat-emoji-picker" id="emojiPickerRow" role="group" aria-label="Emoji options"></div>
+        </div>
+        <button class="btn btn-primary" type="submit">+ Add Category</button>
+      </form>
+
+      <hr style="border:none;border-top:1px solid var(--border);margin:16px 0" />
+
+      <!-- Spending limits + category list -->
+      <div class="section-header" style="padding:0 0 8px">
+        <h2>All Categories &amp; Limits</h2>
+      </div>
+      <p style="font-size:.75rem;color:var(--text-muted);margin-bottom:10px">
+        Set a monthly spending limit per category (leave blank for none).
+      </p>
+      <ul class="cat-list" id="catManagerList" aria-label="Category list with spending limits"></ul>
+
+    </div>
+
+  </section>
+
+</div><!-- /.app-wrapper -->
+
+<!-- ── Bottom Navigation ──────────────────────── -->
+<nav class="bottom-nav" role="navigation" aria-label="Main navigation">
+  <button class="nav-btn active" data-tab="dashboard" aria-label="Dashboard">
+    <span class="nav-icon">🏠</span>
+    <span>Home</span>
+  </button>
+  <button class="nav-btn" data-tab="add" aria-label="Add transaction">
+    <span class="nav-icon">➕</span>
+    <span>Add</span>
+  </button>
+  <button class="nav-btn" data-tab="history" aria-label="Transaction history">
+    <span class="nav-icon">📋</span>
+    <span>History</span>
+  </button>
+  <button class="nav-btn" data-tab="monthly" aria-label="Monthly summary">
+    <span class="nav-icon">📅</span>
+    <span>Monthly</span>
+  </button>
+  <button class="nav-btn" data-tab="categories" aria-label="Manage categories">
+    <span class="nav-icon">🏷️</span>
+    <span>Categories</span>
+  </button>
+</nav>
+
+<!-- ── Toast ──────────────────────────────────── -->
+<div id="toast" role="status" aria-live="assertive" aria-atomic="true"></div>
+
+<script src="js/app.js"></script>
+
+<!-- Set today's date as default -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const today = new Date().toISOString().split('T')[0];
+    const dateInput = document.getElementById('txDate');
+    if (dateInput) dateInput.value = today;
+  });
+</script>
+
+</body>
+</html>
